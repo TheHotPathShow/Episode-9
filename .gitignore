@@ -72,4 +72,5 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 /Assets/SceneDependencyCache
+/Assets/SceneDependencyCache.meta
 /Packages/packages-lock.json
