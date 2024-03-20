@@ -10,6 +10,7 @@ public partial class ThirdPersonPlayerInputsSystem : SystemBase
 {
     protected override void OnCreate()
     {
+        Cursor.lockState = CursorLockMode.Locked;
         RequireForUpdate<FixedTickSystem.Singleton>();
     }
 
