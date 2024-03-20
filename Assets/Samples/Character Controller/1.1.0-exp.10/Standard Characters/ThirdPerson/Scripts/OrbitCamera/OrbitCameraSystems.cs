@@ -68,9 +68,8 @@ public partial struct OrbitCameraSimulationSystem : ISystem
         var cameraTargetLookup = SystemAPI.GetComponentLookup<CameraTarget>(true);
         var kinematicCharacterBodyLookup = SystemAPI.GetComponentLookup<KinematicCharacterBody>(true);
 
-        foreach (var (orbitCameraRef, cameraControl, entity) in SystemAPI
-                     .Query<RefRW<OrbitCamera>, OrbitCameraControl>()
-                     .WithEntityAccess())
+        foreach (var (orbitCameraRef, cameraTransform, cameraControl) in SystemAPI
+                     .Query<RefRW<OrbitCamera>, RefRW<LocalTransform>, OrbitCameraControl>())
         {
             // Skip if we don't have a camera target
             if (!OrbitCameraUtilities.TryGetCameraTargetSimulationWorldTransform(
@@ -124,7 +123,7 @@ public partial struct OrbitCameraSimulationSystem : ISystem
             float3 cameraPosition = OrbitCameraUtilities.CalculateCameraPosition(targetPosition, cameraRotation, orbitCamera.TargetDistance);
 
             // Write back to component
-            localTransformLookup[entity] = LocalTransform.FromPositionRotation(cameraPosition, cameraRotation);
+            cameraTransform.ValueRW = LocalTransform.FromPositionRotation(cameraPosition, cameraRotation);
         }
     }
 }
@@ -147,11 +146,11 @@ public partial struct OrbitCameraLateUpdateSystem : ISystem
         var localToWorldLookup = SystemAPI.GetComponentLookup<LocalToWorld>();
         var cameraTargetLookup = SystemAPI.GetComponentLookup<CameraTarget>(true);
 
-        foreach (var (orbitCameraRef, cameraControl, ignoredEntitiesBuffer, entity) in SystemAPI.Query<
-                     RefRW<OrbitCamera>, 
+        foreach (var (orbitCameraRef, cameraLocalToWorld, cameraControl, ignoredEntitiesBuffer) in SystemAPI.Query<
+                     RefRW<OrbitCamera>,
+                     RefRW<LocalToWorld>,
                      OrbitCameraControl, 
-                     DynamicBuffer<OrbitCameraIgnoredEntityBufferElement>>()
-                     .WithEntityAccess())
+                     DynamicBuffer<OrbitCameraIgnoredEntityBufferElement>>())
         {
             ref var orbitCamera = ref orbitCameraRef.ValueRW;
             // Skip if we don't have a camera target
@@ -244,7 +243,7 @@ public partial struct OrbitCameraLateUpdateSystem : ISystem
             float3 cameraPosition = OrbitCameraUtilities.CalculateCameraPosition(targetPosition, cameraRotation, orbitCamera.ObstructedDistance);
                 
             // Write to LtW
-            localToWorldLookup[entity] = new LocalToWorld { Value = new float4x4(cameraRotation, cameraPosition) };
+            cameraLocalToWorld.ValueRW.Value = new float4x4(cameraRotation, cameraPosition);
         }
     }
 }

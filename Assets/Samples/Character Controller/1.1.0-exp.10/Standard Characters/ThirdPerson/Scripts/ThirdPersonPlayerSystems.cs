@@ -89,34 +89,36 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
     {
         uint tick = SystemAPI.GetSingleton<FixedTickSystem.Singleton>().Tick;
         
-        foreach (var (playerInputs, characterData, playerEntity) in SystemAPI.Query<ThirdPersonPlayerInputs, ThirdPersonCharacterData>().WithEntityAccess())
+        foreach (var (characterControlRef, playerInputs, characterData, transform) in SystemAPI.Query<
+                     RefRW<ThirdPersonCharacterControl>, 
+                     ThirdPersonPlayerInputs, 
+                     ThirdPersonCharacterData, 
+                     LocalTransform>())
         {
-            if (SystemAPI.HasComponent<ThirdPersonCharacterControl>(playerEntity))
+            ref var characterControl = ref characterControlRef.ValueRW;
+
+            float3 characterUp = MathUtilities.GetUpFromRotation(transform.Rotation);
+            
+            // Get camera rotation, since our movement is relative to it.
+            quaternion cameraRotation = quaternion.identity;
+            if (SystemAPI.HasComponent<OrbitCamera>(characterData.ControlledCamera))
             {
-                ref var characterControl = ref SystemAPI.GetComponentRW<ThirdPersonCharacterControl>(playerEntity).ValueRW;
-
-                float3 characterUp = MathUtilities.GetUpFromRotation(SystemAPI.GetComponent<LocalTransform>(playerEntity).Rotation);
-                
-                // Get camera rotation, since our movement is relative to it.
-                quaternion cameraRotation = quaternion.identity;
-                if (SystemAPI.HasComponent<OrbitCamera>(characterData.ControlledCamera))
-                {
-                    // Camera rotation is calculated rather than gotten from transform, because this allows us to 
-                    // reduce the size of the camera ghost state in a netcode prediction context.
-                    // If not using netcode prediction, we could simply get rotation from transform here instead.
-                    OrbitCamera orbitCamera = SystemAPI.GetComponent<OrbitCamera>(characterData.ControlledCamera);
-                    cameraRotation = OrbitCameraUtilities.CalculateCameraRotation(characterUp, orbitCamera.PlanarForward, orbitCamera.PitchAngle);
-                }
-                float3 cameraForwardOnUpPlane = math.normalizesafe(MathUtilities.ProjectOnPlane(MathUtilities.GetForwardFromRotation(cameraRotation), characterUp));
-                float3 cameraRight = MathUtilities.GetRightFromRotation(cameraRotation);
-
-                // Move
-                characterControl.MoveVector = (playerInputs.MoveInput.y * cameraForwardOnUpPlane) + (playerInputs.MoveInput.x * cameraRight);
-                characterControl.MoveVector = MathUtilities.ClampToMaxLength(characterControl.MoveVector, 1f);
-
-                // Jump
-                characterControl.Jump = playerInputs.JumpPressed.IsSet(tick);
+                // Camera rotation is calculated rather than gotten from transform, because this allows us to 
+                // reduce the size of the camera ghost state in a netcode prediction context.
+                // If not using netcode prediction, we could simply get rotation from transform here instead.
+                OrbitCamera orbitCamera = SystemAPI.GetComponent<OrbitCamera>(characterData.ControlledCamera);
+                cameraRotation = OrbitCameraUtilities.CalculateCameraRotation(characterUp, orbitCamera.PlanarForward, orbitCamera.PitchAngle);
             }
+            float3 cameraForwardOnUpPlane = math.normalizesafe(MathUtilities.ProjectOnPlane(MathUtilities.GetForwardFromRotation(cameraRotation), characterUp));
+            float3 cameraRight = MathUtilities.GetRightFromRotation(cameraRotation);
+
+            // Move
+            characterControl.MoveVector = (playerInputs.MoveInput.y * cameraForwardOnUpPlane) + (playerInputs.MoveInput.x * cameraRight);
+            characterControl.MoveVector = MathUtilities.ClampToMaxLength(characterControl.MoveVector, 1f);
+
+            // Jump
+            characterControl.Jump = playerInputs.JumpPressed.IsSet(tick);
+        
         }
     }
 }
