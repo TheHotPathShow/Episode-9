@@ -6,8 +6,12 @@ using Unity.CharacterController;
 [DisallowMultipleComponent]
 public class ThirdPersonCharacterAuthoring : MonoBehaviour
 {
+    [Header("Setup")]
+    public GameObject ControlledCamera;
+    
     public AuthoringKinematicCharacterProperties CharacterProperties = AuthoringKinematicCharacterProperties.GetDefault();
     
+    [Header("Additional Character Specific Settings")]
     public float RotationSharpness = 25f;
     public float GroundMaxSpeed = 10f;
     public float GroundedMovementSharpness = 15f;
@@ -27,7 +31,7 @@ public class ThirdPersonCharacterAuthoring : MonoBehaviour
 
             Entity entity = GetEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.WorldSpace);
 
-            AddComponent(entity, new ThirdPersonCharacterComponent
+            AddComponent(entity, new ThirdPersonCharacterData
             {
                 RotationSharpness = authoring.RotationSharpness,
                 GroundMaxSpeed = authoring.GroundMaxSpeed,
@@ -39,8 +43,10 @@ public class ThirdPersonCharacterAuthoring : MonoBehaviour
                 Gravity = authoring.Gravity,
                 PreventAirAccelerationAgainstUngroundedHits = authoring.PreventAirAccelerationAgainstUngroundedHits,
                 StepAndSlopeHandling = authoring.StepAndSlopeHandling,
+                ControlledCamera = GetEntity(authoring.ControlledCamera, TransformUsageFlags.Dynamic),
             });
-            AddComponent(entity, new ThirdPersonCharacterControl());
+            AddComponent<ThirdPersonCharacterControl>(entity);
+            AddComponent<ThirdPersonPlayerInputs>(entity);
         }
     }
 

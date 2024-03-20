@@ -22,12 +22,12 @@ public struct ThirdPersonCharacterUpdateContext
 public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicCharacterProcessor<ThirdPersonCharacterUpdateContext>
 {
     public readonly KinematicCharacterAspect CharacterAspect;
-    public readonly RefRW<ThirdPersonCharacterComponent> CharacterComponent;
+    public readonly RefRW<ThirdPersonCharacterData> CharacterComponent;
     public readonly RefRW<ThirdPersonCharacterControl> CharacterControl;
 
     public void PhysicsUpdate(ref ThirdPersonCharacterUpdateContext context, ref KinematicCharacterUpdateContext baseContext)
     {
-        ref ThirdPersonCharacterComponent characterComponent = ref CharacterComponent.ValueRW;
+        ref ThirdPersonCharacterData characterData = ref CharacterComponent.ValueRW;
         ref KinematicCharacterBody characterBody = ref CharacterAspect.CharacterBody.ValueRW;
         ref float3 characterPosition = ref CharacterAspect.LocalTransform.ValueRW.Position;
 
@@ -40,8 +40,8 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
         HandleVelocityControl(ref context, ref baseContext);
 
         // Second phase of default character update
-        CharacterAspect.Update_PreventGroundingFromFutureSlopeChange(in this, ref context, ref baseContext, ref characterBody, in characterComponent.StepAndSlopeHandling);
-        CharacterAspect.Update_GroundPushing(in this, ref context, ref baseContext, characterComponent.Gravity);
+        CharacterAspect.Update_PreventGroundingFromFutureSlopeChange(in this, ref context, ref baseContext, ref characterBody, in characterData.StepAndSlopeHandling);
+        CharacterAspect.Update_GroundPushing(in this, ref context, ref baseContext, characterData.Gravity);
         CharacterAspect.Update_MovementAndDecollisions(in this, ref context, ref baseContext, ref characterBody, ref characterPosition);
         CharacterAspect.Update_MovingPlatformDetection(ref baseContext, ref characterBody); 
         CharacterAspect.Update_ParentMomentum(ref baseContext, ref characterBody);
@@ -52,7 +52,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
     {
         float deltaTime = baseContext.Time.DeltaTime;
         ref KinematicCharacterBody characterBody = ref CharacterAspect.CharacterBody.ValueRW;
-        ref ThirdPersonCharacterComponent characterComponent = ref CharacterComponent.ValueRW;
+        ref ThirdPersonCharacterData characterData = ref CharacterComponent.ValueRW;
         ref ThirdPersonCharacterControl characterControl = ref CharacterControl.ValueRW;
 
         // Rotate move input and velocity to take into account parent rotation
@@ -65,43 +65,43 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
         if (characterBody.IsGrounded)
         {
             // Move on ground
-            float3 targetVelocity = characterControl.MoveVector * characterComponent.GroundMaxSpeed;
-            CharacterControlUtilities.StandardGroundMove_Interpolated(ref characterBody.RelativeVelocity, targetVelocity, characterComponent.GroundedMovementSharpness, deltaTime, characterBody.GroundingUp, characterBody.GroundHit.Normal);
+            float3 targetVelocity = characterControl.MoveVector * characterData.GroundMaxSpeed;
+            CharacterControlUtilities.StandardGroundMove_Interpolated(ref characterBody.RelativeVelocity, targetVelocity, characterData.GroundedMovementSharpness, deltaTime, characterBody.GroundingUp, characterBody.GroundHit.Normal);
 
             // Jump
             if (characterControl.Jump)
             {
-                CharacterControlUtilities.StandardJump(ref characterBody, characterBody.GroundingUp * characterComponent.JumpSpeed, true, characterBody.GroundingUp);
+                CharacterControlUtilities.StandardJump(ref characterBody, characterBody.GroundingUp * characterData.JumpSpeed, true, characterBody.GroundingUp);
             }
         }
         else
         {
             // Move in air
-            float3 airAcceleration = characterControl.MoveVector * characterComponent.AirAcceleration;
+            float3 airAcceleration = characterControl.MoveVector * characterData.AirAcceleration;
             if (math.lengthsq(airAcceleration) > 0f)
             {
                 float3 tmpVelocity = characterBody.RelativeVelocity;
-                CharacterControlUtilities.StandardAirMove(ref characterBody.RelativeVelocity, airAcceleration, characterComponent.AirMaxSpeed, characterBody.GroundingUp, deltaTime, false);
+                CharacterControlUtilities.StandardAirMove(ref characterBody.RelativeVelocity, airAcceleration, characterData.AirMaxSpeed, characterBody.GroundingUp, deltaTime, false);
 
                 // Cancel air acceleration from input if we would hit a non-grounded surface (prevents air-climbing slopes at high air accelerations)
-                if (characterComponent.PreventAirAccelerationAgainstUngroundedHits && CharacterAspect.MovementWouldHitNonGroundedObstruction(in this, ref context, ref baseContext, characterBody.RelativeVelocity * deltaTime, out ColliderCastHit hit))
+                if (characterData.PreventAirAccelerationAgainstUngroundedHits && CharacterAspect.MovementWouldHitNonGroundedObstruction(in this, ref context, ref baseContext, characterBody.RelativeVelocity * deltaTime, out ColliderCastHit hit))
                 {
                     characterBody.RelativeVelocity = tmpVelocity;
                 }
             }
             
             // Gravity
-            CharacterControlUtilities.AccelerateVelocity(ref characterBody.RelativeVelocity, characterComponent.Gravity, deltaTime);
+            CharacterControlUtilities.AccelerateVelocity(ref characterBody.RelativeVelocity, characterData.Gravity, deltaTime);
 
             // Drag
-            CharacterControlUtilities.ApplyDragToVelocity(ref characterBody.RelativeVelocity, deltaTime, characterComponent.AirDrag);
+            CharacterControlUtilities.ApplyDragToVelocity(ref characterBody.RelativeVelocity, deltaTime, characterData.AirDrag);
         }
     }
 
     public void VariableUpdate(ref ThirdPersonCharacterUpdateContext context, ref KinematicCharacterUpdateContext baseContext)
     {
         ref KinematicCharacterBody characterBody = ref CharacterAspect.CharacterBody.ValueRW;
-        ref ThirdPersonCharacterComponent characterComponent = ref CharacterComponent.ValueRW;
+        ref ThirdPersonCharacterData characterData = ref CharacterComponent.ValueRW;
         ref ThirdPersonCharacterControl characterControl = ref CharacterControl.ValueRW;
         ref quaternion characterRotation = ref CharacterAspect.LocalTransform.ValueRW.Rotation;
 
@@ -112,7 +112,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
         // Rotate towards move direction
         if (math.lengthsq(characterControl.MoveVector) > 0f)
         {
-            CharacterControlUtilities.SlerpRotationTowardsDirectionAroundUp(ref characterRotation, baseContext.Time.DeltaTime, math.normalizesafe(characterControl.MoveVector), MathUtilities.GetUpFromRotation(characterRotation), characterComponent.RotationSharpness);
+            CharacterControlUtilities.SlerpRotationTowardsDirectionAroundUp(ref characterRotation, baseContext.Time.DeltaTime, math.normalizesafe(characterControl.MoveVector), MathUtilities.GetUpFromRotation(characterRotation), characterData.RotationSharpness);
         }
     }
     
@@ -140,14 +140,14 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
         in BasicHit hit, 
         int groundingEvaluationType)
     {
-        ThirdPersonCharacterComponent characterComponent = CharacterComponent.ValueRO;
+        ThirdPersonCharacterData characterData = CharacterComponent.ValueRO;
         
         return CharacterAspect.Default_IsGroundedOnHit(
             in this,
             ref context,
             ref baseContext,
             in hit,
-            in characterComponent.StepAndSlopeHandling,
+            in characterData.StepAndSlopeHandling,
             groundingEvaluationType);
     }
 
@@ -162,7 +162,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
     {
         ref KinematicCharacterBody characterBody = ref CharacterAspect.CharacterBody.ValueRW;
         ref float3 characterPosition = ref CharacterAspect.LocalTransform.ValueRW.Position;
-        ThirdPersonCharacterComponent characterComponent = CharacterComponent.ValueRO;
+        ThirdPersonCharacterData characterData = CharacterComponent.ValueRO;
         
         CharacterAspect.Default_OnMovementHit(
             in this,
@@ -175,9 +175,9 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
             ref remainingMovementLength,
             originalVelocityDirection,
             hitDistance,
-            characterComponent.StepAndSlopeHandling.StepHandling,
-            characterComponent.StepAndSlopeHandling.MaxStepHeight,
-            characterComponent.StepAndSlopeHandling.CharacterWidthForStepGroundingCheck);
+            characterData.StepAndSlopeHandling.StepHandling,
+            characterData.StepAndSlopeHandling.MaxStepHeight,
+            characterData.StepAndSlopeHandling.CharacterWidthForStepGroundingCheck);
     }
 
     public void OverrideDynamicHitMasses(
@@ -199,7 +199,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
         in DynamicBuffer<KinematicVelocityProjectionHit> velocityProjectionHits,
         float3 originalVelocityDirection)
     {
-        ThirdPersonCharacterComponent characterComponent = CharacterComponent.ValueRO;
+        ThirdPersonCharacterData characterData = CharacterComponent.ValueRO;
         
         CharacterAspect.Default_ProjectVelocityOnHits(
             ref velocity,
@@ -207,7 +207,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
             ref characterGroundHit,
             in velocityProjectionHits,
             originalVelocityDirection,
-            characterComponent.StepAndSlopeHandling.ConstrainVelocityToGroundPlane);
+            characterData.StepAndSlopeHandling.ConstrainVelocityToGroundPlane);
     }
     #endregion
 }

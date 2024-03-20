@@ -1,9 +1,19 @@
+using System;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 using Unity.CharacterController;
+
+[Serializable]
+public struct ThirdPersonPlayerInputs : IComponentData
+{
+    public float2 MoveInput;
+    public float2 CameraLookInput;
+    public float CameraZoomInput;
+    public FixedInputEvent JumpPressed;
+}
 
 [UpdateInGroup(typeof(InitializationSystemGroup))]
 public partial class ThirdPersonPlayerInputsSystem : SystemBase
@@ -18,7 +28,7 @@ public partial class ThirdPersonPlayerInputsSystem : SystemBase
     {
         uint tick = SystemAPI.GetSingleton<FixedTickSystem.Singleton>().Tick;
         
-        foreach (var (playerInputs, _) in SystemAPI.Query<RefRW<ThirdPersonPlayerInputs>, ThirdPersonPlayer>())
+        foreach (var playerInputs in SystemAPI.Query<RefRW<ThirdPersonPlayerInputs>>())
         {
             playerInputs.ValueRW.MoveInput = new float2
             {
@@ -29,10 +39,8 @@ public partial class ThirdPersonPlayerInputsSystem : SystemBase
             playerInputs.ValueRW.CameraLookInput = new float2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
             playerInputs.ValueRW.CameraZoomInput = -Input.mouseScrollDelta.y;
 
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
+            if (Input.GetKeyDown(KeyCode.Space)) 
                 playerInputs.ValueRW.JumpPressed.Set(tick);
-            }
         }
     }
 }
@@ -48,12 +56,13 @@ public partial struct ThirdPersonPlayerVariableStepControlSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (var (playerInputs, player) in SystemAPI.Query<ThirdPersonPlayerInputs, ThirdPersonPlayer>().WithAll<Simulate>())
+        foreach (var (playerInputs, characterData, playerEntity) in SystemAPI
+                     .Query<ThirdPersonPlayerInputs, ThirdPersonCharacterData>().WithEntityAccess())
         {
-            if (SystemAPI.HasComponent<OrbitCameraControl>(player.ControlledCamera))
+            if (SystemAPI.HasComponent<OrbitCameraControl>(characterData.ControlledCamera))
             {
-                ref var cameraControl = ref SystemAPI.GetComponentRW<OrbitCameraControl>(player.ControlledCamera).ValueRW;
-                cameraControl.FollowedCharacterEntity = player.ControlledCharacter;
+                ref var cameraControl = ref SystemAPI.GetComponentRW<OrbitCameraControl>(characterData.ControlledCamera).ValueRW;
+                cameraControl.FollowedCharacterEntity = playerEntity;
                 cameraControl.LookDegreesDelta = playerInputs.CameraLookInput;
                 cameraControl.ZoomDelta = playerInputs.CameraZoomInput;
             }
@@ -80,22 +89,22 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
     {
         uint tick = SystemAPI.GetSingleton<FixedTickSystem.Singleton>().Tick;
         
-        foreach (var (playerInputs, player) in SystemAPI.Query<ThirdPersonPlayerInputs, ThirdPersonPlayer>().WithAll<Simulate>())
+        foreach (var (playerInputs, characterData, playerEntity) in SystemAPI.Query<ThirdPersonPlayerInputs, ThirdPersonCharacterData>().WithEntityAccess())
         {
-            if (SystemAPI.HasComponent<ThirdPersonCharacterControl>(player.ControlledCharacter))
+            if (SystemAPI.HasComponent<ThirdPersonCharacterControl>(playerEntity))
             {
-                ref var characterControl = ref SystemAPI.GetComponentRW<ThirdPersonCharacterControl>(player.ControlledCharacter).ValueRW;
+                ref var characterControl = ref SystemAPI.GetComponentRW<ThirdPersonCharacterControl>(playerEntity).ValueRW;
 
-                float3 characterUp = MathUtilities.GetUpFromRotation(SystemAPI.GetComponent<LocalTransform>(player.ControlledCharacter).Rotation);
+                float3 characterUp = MathUtilities.GetUpFromRotation(SystemAPI.GetComponent<LocalTransform>(playerEntity).Rotation);
                 
                 // Get camera rotation, since our movement is relative to it.
                 quaternion cameraRotation = quaternion.identity;
-                if (SystemAPI.HasComponent<OrbitCamera>(player.ControlledCamera))
+                if (SystemAPI.HasComponent<OrbitCamera>(characterData.ControlledCamera))
                 {
                     // Camera rotation is calculated rather than gotten from transform, because this allows us to 
                     // reduce the size of the camera ghost state in a netcode prediction context.
                     // If not using netcode prediction, we could simply get rotation from transform here instead.
-                    OrbitCamera orbitCamera = SystemAPI.GetComponent<OrbitCamera>(player.ControlledCamera);
+                    OrbitCamera orbitCamera = SystemAPI.GetComponent<OrbitCamera>(characterData.ControlledCamera);
                     cameraRotation = OrbitCameraUtilities.CalculateCameraRotation(characterUp, orbitCamera.PlanarForward, orbitCamera.PitchAngle);
                 }
                 float3 cameraForwardOnUpPlane = math.normalizesafe(MathUtilities.ProjectOnPlane(MathUtilities.GetForwardFromRotation(cameraRotation), characterUp));

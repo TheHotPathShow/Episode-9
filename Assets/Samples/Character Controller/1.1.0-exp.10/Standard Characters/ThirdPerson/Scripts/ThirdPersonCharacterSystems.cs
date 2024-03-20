@@ -1,8 +1,34 @@
+using System;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Physics;
 using Unity.Transforms;
 using Unity.CharacterController;
+using Unity.Mathematics;
+
+[Serializable]
+public struct ThirdPersonCharacterData : IComponentData
+{
+    public float RotationSharpness;
+    public float GroundMaxSpeed;
+    public float GroundedMovementSharpness;
+    public float AirAcceleration;
+    public float AirMaxSpeed;
+    public float AirDrag;
+    public float JumpSpeed;
+    public float3 Gravity;
+    public bool PreventAirAccelerationAgainstUngroundedHits;
+    public BasicStepAndSlopeHandlingParameters StepAndSlopeHandling;
+    
+    public Entity ControlledCamera;
+}
+
+[Serializable]
+public struct ThirdPersonCharacterControl : IComponentData
+{
+    public float3 MoveVector;
+    public bool Jump;
+}
 
 [UpdateInGroup(typeof(KinematicCharacterPhysicsUpdateGroup))]
 [BurstCompile]
@@ -18,7 +44,7 @@ public partial struct ThirdPersonCharacterPhysicsUpdateSystem : ISystem
         _baseContext.OnSystemCreate(ref state);
         state.RequireForUpdate(
             KinematicCharacterUtilities.GetBaseCharacterQueryBuilder()
-            .WithAll<ThirdPersonCharacterComponent, ThirdPersonCharacterControl>()
+            .WithAll<ThirdPersonCharacterData, ThirdPersonCharacterControl>()
             .Build(ref state));
         state.RequireForUpdate<PhysicsWorldSingleton>();
     }
@@ -56,7 +82,7 @@ public partial struct ThirdPersonCharacterVariableUpdateSystem : ISystem
 
         state.RequireForUpdate(
             KinematicCharacterUtilities.GetBaseCharacterQueryBuilder()
-                .WithAll<ThirdPersonCharacterComponent, ThirdPersonCharacterControl>()
+                .WithAll<ThirdPersonCharacterData, ThirdPersonCharacterControl>()
                 .Build(ref state));
         state.RequireForUpdate<PhysicsWorldSingleton>();
     }
