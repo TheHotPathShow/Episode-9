@@ -10,10 +10,10 @@ using Unity.Mathematics;
 public struct ThirdPersonCharacterData : IComponentData
 {
     public float RotationSharpness;
-    public float GroundMaxSpeed;
+    public float WalkSpeed;
+    public float SprintSpeed;
     public float GroundedMovementSharpness;
     public float AirAcceleration;
-    public float AirMaxSpeed;
     public float AirDrag;
     public float JumpSpeed;
     public float3 Gravity;
@@ -27,6 +27,7 @@ public struct ThirdPersonCharacterData : IComponentData
 public struct ThirdPersonCharacterControl : IComponentData
 {
     public float3 MoveVector;
+    public bool SprintIsHeld;
     public bool Jump;
 }
 

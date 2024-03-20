@@ -61,11 +61,14 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
             characterControl.MoveVector = math.rotate(characterBody.RotationFromParent, characterControl.MoveVector);
             characterBody.RelativeVelocity = math.rotate(characterBody.RotationFromParent, characterBody.RelativeVelocity);
         }
-        
+
+        var moveSpeed = characterControl.SprintIsHeld 
+            ? characterData.SprintSpeed 
+            : characterData.WalkSpeed;
         if (characterBody.IsGrounded)
         {
             // Move on ground
-            float3 targetVelocity = characterControl.MoveVector * characterData.GroundMaxSpeed;
+            float3 targetVelocity = characterControl.MoveVector * moveSpeed;
             CharacterControlUtilities.StandardGroundMove_Interpolated(ref characterBody.RelativeVelocity, targetVelocity, characterData.GroundedMovementSharpness, deltaTime, characterBody.GroundingUp, characterBody.GroundHit.Normal);
 
             // Jump
@@ -81,7 +84,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
             if (math.lengthsq(airAcceleration) > 0f)
             {
                 float3 tmpVelocity = characterBody.RelativeVelocity;
-                CharacterControlUtilities.StandardAirMove(ref characterBody.RelativeVelocity, airAcceleration, characterData.AirMaxSpeed, characterBody.GroundingUp, deltaTime, false);
+                CharacterControlUtilities.StandardAirMove(ref characterBody.RelativeVelocity, airAcceleration, moveSpeed, characterBody.GroundingUp, deltaTime, false);
 
                 // Cancel air acceleration from input if we would hit a non-grounded surface (prevents air-climbing slopes at high air accelerations)
                 if (characterData.PreventAirAccelerationAgainstUngroundedHits && CharacterAspect.MovementWouldHitNonGroundedObstruction(in this, ref context, ref baseContext, characterBody.RelativeVelocity * deltaTime, out ColliderCastHit hit))

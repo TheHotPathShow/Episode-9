@@ -300,9 +300,45 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6689285571920954877, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: AirDrag
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6689285571920954877, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: Gravity.y
+      value: -25
+      objectReference: {fileID: 0}
+    - target: {fileID: 6689285571920954877, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: WalkSpeed
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 6689285571920954877, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: SprintSpeed
+      value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: 6689285571920954877, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
       propertyPath: ControlledCamera
       value: 
       objectReference: {fileID: 1529753647}
+    - target: {fileID: 6689285571920954877, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: GroundedMovementSharpness
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 8041698241194078798, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: m_Height
+      value: 1.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 8041698241194078798, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: m_Radius
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8041698241194078798, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: m_Center.y
+      value: 0.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 8041698241194078798, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
+      propertyPath: m_Center.z
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 1692896103431116738, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}

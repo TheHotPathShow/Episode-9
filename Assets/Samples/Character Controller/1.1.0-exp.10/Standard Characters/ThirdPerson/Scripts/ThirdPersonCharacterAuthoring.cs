@@ -13,13 +13,13 @@ public class ThirdPersonCharacterAuthoring : MonoBehaviour
     
     [Header("Additional Character Specific Settings")]
     public float RotationSharpness = 25f;
-    public float GroundMaxSpeed = 10f;
-    public float GroundedMovementSharpness = 15f;
+    public float WalkSpeed = 10f;
+    public float SprintSpeed = 15f;
+    public float GroundedMovementSharpness = 10f;
     public float AirAcceleration = 50f;
-    public float AirMaxSpeed = 10f;
-    public float AirDrag = 0f;
+    public float AirDrag = 1f;
     public float JumpSpeed = 10f;
-    public float3 Gravity = math.up() * -30f;
+    public float3 Gravity = math.up() * -25;
     public bool PreventAirAccelerationAgainstUngroundedHits = true;
     public BasicStepAndSlopeHandlingParameters StepAndSlopeHandling = BasicStepAndSlopeHandlingParameters.GetDefault();
 
@@ -34,10 +34,10 @@ public class ThirdPersonCharacterAuthoring : MonoBehaviour
             AddComponent(entity, new ThirdPersonCharacterData
             {
                 RotationSharpness = authoring.RotationSharpness,
-                GroundMaxSpeed = authoring.GroundMaxSpeed,
+                WalkSpeed = authoring.WalkSpeed,
+                SprintSpeed = authoring.SprintSpeed,
                 GroundedMovementSharpness = authoring.GroundedMovementSharpness,
                 AirAcceleration = authoring.AirAcceleration,
-                AirMaxSpeed = authoring.AirMaxSpeed,
                 AirDrag = authoring.AirDrag,
                 JumpSpeed = authoring.JumpSpeed,
                 Gravity = authoring.Gravity,

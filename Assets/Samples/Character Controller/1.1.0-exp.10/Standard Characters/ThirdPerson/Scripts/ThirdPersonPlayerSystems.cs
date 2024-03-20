@@ -12,16 +12,25 @@ public struct ThirdPersonPlayerInputs : IComponentData
     public float2 MoveInput;
     public float2 CameraLookInput;
     public float CameraZoomInput;
+    public bool SprintIsHeld;
     public FixedInputEvent JumpPressed;
 }
 
 [UpdateInGroup(typeof(InitializationSystemGroup))]
 public partial class ThirdPersonPlayerInputsSystem : SystemBase
 {
+    KyleInput m_Input;
     protected override void OnCreate()
     {
+        m_Input = new KyleInput();
+        m_Input.Enable();
         Cursor.lockState = CursorLockMode.Locked;
         RequireForUpdate<FixedTickSystem.Singleton>();
+    }
+
+    protected override void OnDestroy()
+    {
+        m_Input.Disable();
     }
 
     protected override void OnUpdate()
@@ -30,16 +39,11 @@ public partial class ThirdPersonPlayerInputsSystem : SystemBase
         
         foreach (var playerInputs in SystemAPI.Query<RefRW<ThirdPersonPlayerInputs>>())
         {
-            playerInputs.ValueRW.MoveInput = new float2
-            {
-                x = (Input.GetKey(KeyCode.D) ? 1f : 0f) + (Input.GetKey(KeyCode.A) ? -1f : 0f),
-                y = (Input.GetKey(KeyCode.W) ? 1f : 0f) + (Input.GetKey(KeyCode.S) ? -1f : 0f),
-            };
-
-            playerInputs.ValueRW.CameraLookInput = new float2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+            playerInputs.ValueRW.MoveInput = m_Input.Player.Move.ReadValue<Vector2>();
+            playerInputs.ValueRW.CameraLookInput = m_Input.Player.Look.ReadValue<Vector2>();
+            playerInputs.ValueRW.SprintIsHeld = m_Input.Player.Sprint.IsPressed();
             playerInputs.ValueRW.CameraZoomInput = -Input.mouseScrollDelta.y;
-
-            if (Input.GetKeyDown(KeyCode.Space)) 
+            if (m_Input.Player.Jump.triggered) 
                 playerInputs.ValueRW.JumpPressed.Set(tick);
         }
     }
@@ -118,7 +122,9 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
 
             // Jump
             characterControl.Jump = playerInputs.JumpPressed.IsSet(tick);
-        
+            
+            // Sprint
+            characterControl.SprintIsHeld = playerInputs.SprintIsHeld;
         }
     }
 }
