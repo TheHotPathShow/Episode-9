@@ -138,6 +138,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1277783909}
   - component: {fileID: 1277783910}
+  - component: {fileID: 1277783911}
   m_Layer: 0
   m_Name: KyleAnimatorRoot
   m_TagString: Untagged
@@ -173,6 +174,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Animator: {fileID: 1700792186031111537, guid: e3fcb3aaf15592244b89f90ab0820685, type: 3}
+--- !u!114 &1277783911
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1277783908}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5571f410f3334e9cb1263289ee7b8e4e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  SpeedChangeRate: 10
+  FallTimeout: 0.15
 --- !u!1001 &1529753646
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -309,7 +324,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6689285571920954877, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
       propertyPath: WalkSpeed
-      value: 10
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 6689285571920954877, guid: 5fbcc801dea8fd640a004697d22ed448, type: 3}
       propertyPath: SprintSpeed

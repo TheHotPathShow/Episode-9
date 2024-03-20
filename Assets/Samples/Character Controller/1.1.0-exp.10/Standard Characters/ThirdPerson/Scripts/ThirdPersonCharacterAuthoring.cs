@@ -44,6 +44,7 @@ public class ThirdPersonCharacterAuthoring : MonoBehaviour
                 PreventAirAccelerationAgainstUngroundedHits = authoring.PreventAirAccelerationAgainstUngroundedHits,
                 StepAndSlopeHandling = authoring.StepAndSlopeHandling,
                 ControlledCamera = GetEntity(authoring.ControlledCamera, TransformUsageFlags.Dynamic),
+                AnimationEntity = GetEntity(authoring.GetComponentInChildren<KyleAnimatorAuthor>().gameObject, TransformUsageFlags.Dynamic)
             });
             AddComponent<ThirdPersonCharacterInput>(entity);
             AddComponent<ThirdPersonPlayerInputs>(entity);

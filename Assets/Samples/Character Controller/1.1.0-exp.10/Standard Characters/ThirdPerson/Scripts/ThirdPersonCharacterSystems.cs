@@ -5,6 +5,7 @@ using Unity.Physics;
 using Unity.Transforms;
 using Unity.CharacterController;
 using Unity.Mathematics;
+using UnityEngine;
 
 [Serializable]
 public struct ThirdPersonCharacterData : IComponentData
@@ -21,6 +22,7 @@ public struct ThirdPersonCharacterData : IComponentData
     public BasicStepAndSlopeHandlingParameters StepAndSlopeHandling;
     
     public Entity ControlledCamera;
+    public Entity AnimationEntity;
 }
 
 [Serializable]
@@ -63,6 +65,17 @@ public partial struct ThirdPersonCharacterPhysicsUpdateSystem : ISystem
     }
 }
 
+struct KyleAnimationData : IComponentData
+{
+    // Read-Only Properties
+    public float SpeedChangeRate;
+    public float FallTimeout;
+    
+    // Read-Write Properties
+    public float MotionBlend;
+    public float FallTimeoutDelta;
+}
+
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(FixedStepSimulationSystemGroup))]
 [UpdateAfter(typeof(ThirdPersonPlayerVariableStepControlSystem))]
@@ -72,6 +85,11 @@ public partial struct ThirdPersonCharacterVariableUpdateSystem : ISystem
 {
     ThirdPersonCharacterUpdateContext _context;
     KinematicCharacterUpdateContext _baseContext;
+    static readonly int AnimIDSpeed = Animator.StringToHash("Speed");
+    static readonly int AnimIDGrounded = Animator.StringToHash("Grounded");
+    static readonly int AnimIDJump = Animator.StringToHash("Jump");
+    static readonly int AnimIDFreeFall = Animator.StringToHash("FreeFall");
+    static readonly int AnimIDMotionSpeed = Animator.StringToHash("MotionSpeed");
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -86,9 +104,9 @@ public partial struct ThirdPersonCharacterVariableUpdateSystem : ISystem
                 .WithAll<ThirdPersonCharacterData, ThirdPersonCharacterInput>()
                 .Build(ref state));
         state.RequireForUpdate<PhysicsWorldSingleton>();
+        state.RequireForUpdate(SystemAPI.QueryBuilder().WithAll<Animator>().Build());
     }
-
-    [BurstCompile]
+    
     public void OnUpdate(ref SystemState state)
     {
         _context.OnSystemUpdate(ref state);
@@ -97,6 +115,43 @@ public partial struct ThirdPersonCharacterVariableUpdateSystem : ISystem
         foreach (var characterAspect in SystemAPI.Query<ThirdPersonCharacterAspect>())
         {
             characterAspect.VariableUpdate(ref _context, ref _baseContext);
+            
+            // Handle Animation
+            var characterData = characterAspect.CharacterData.ValueRO;
+            if (characterData.AnimationEntity == Entity.Null) 
+                continue;
+            
+            // Get Animation Data
+            var animator = SystemAPI.ManagedAPI.GetComponent<Animator>(characterData.AnimationEntity);
+            ref var animationData = ref SystemAPI.GetComponentRW<KyleAnimationData>(characterData.AnimationEntity).ValueRW;
+            var characterInput = characterAspect.CharacterInput.ValueRO;
+            var characterBody = characterAspect.CharacterAspect.CharacterBody.ValueRO;
+            var targetSpeed = characterInput.SprintIsHeld ? characterData.SprintSpeed : characterData.WalkSpeed;
+                
+            // Update Motion Blend
+            animationData.MotionBlend = math.lerp(animationData.MotionBlend, 
+                targetSpeed * math.length(characterInput.MoveVector), 
+                SystemAPI.Time.DeltaTime * animationData.SpeedChangeRate);
+            if (animationData.MotionBlend < 0.01f) 
+                animationData.MotionBlend = 0f;
+            animator.SetFloat(AnimIDSpeed, animationData.MotionBlend);
+            animator.SetFloat(AnimIDMotionSpeed, 1);
+                
+            // Update Jump and Grounded States
+            animator.SetBool(AnimIDJump, characterInput.Jump);
+            animator.SetBool(AnimIDGrounded, characterBody.IsGrounded);
+            if (characterBody.IsGrounded)
+            {
+                animationData.FallTimeoutDelta = animationData.FallTimeout;
+                animator.SetBool(AnimIDFreeFall, false);
+            }
+            else
+            {
+                if (animationData.FallTimeoutDelta >= 0.0f)
+                    animationData.FallTimeoutDelta -= SystemAPI.Time.DeltaTime;
+                else
+                    animator.SetBool(AnimIDFreeFall, true);
+            }
         }
     }
 }
