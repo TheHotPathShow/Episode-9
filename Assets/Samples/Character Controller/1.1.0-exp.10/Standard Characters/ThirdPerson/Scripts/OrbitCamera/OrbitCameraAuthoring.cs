@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Transforms;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -62,12 +61,12 @@ public class OrbitCameraAuthoring : MonoBehaviour
             
             AddComponent(entity, new OrbitCameraControl());
             
-            DynamicBuffer<OrbitCameraIgnoredEntityBufferElement> ignoredEntitiesBuffer = AddBuffer<OrbitCameraIgnoredEntityBufferElement>(entity);
-            for (int i = 0; i < authoring.IgnoredEntities.Count; i++)
+            var ignoredEntitiesBuffer = AddBuffer<OrbitCameraIgnoredEntityBufferElement>(entity);
+            foreach (var ignoredEntity in authoring.IgnoredEntities)
             {
                 ignoredEntitiesBuffer.Add(new OrbitCameraIgnoredEntityBufferElement
                 {
-                    Entity = GetEntity(authoring.IgnoredEntities[i], TransformUsageFlags.None),
+                    Entity = GetEntity(ignoredEntity, TransformUsageFlags.None),
                 });
             }
         }

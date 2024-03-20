@@ -1,7 +1,5 @@
 using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -13,14 +11,13 @@ public partial class ThirdPersonPlayerInputsSystem : SystemBase
     protected override void OnCreate()
     {
         RequireForUpdate<FixedTickSystem.Singleton>();
-        RequireForUpdate(SystemAPI.QueryBuilder().WithAll<ThirdPersonPlayer, ThirdPersonPlayerInputs>().Build());
     }
 
     protected override void OnUpdate()
     {
         uint tick = SystemAPI.GetSingleton<FixedTickSystem.Singleton>().Tick;
         
-        foreach (var (playerInputs, player) in SystemAPI.Query<RefRW<ThirdPersonPlayerInputs>, ThirdPersonPlayer>())
+        foreach (var (playerInputs, _) in SystemAPI.Query<RefRW<ThirdPersonPlayerInputs>, ThirdPersonPlayer>())
         {
             playerInputs.ValueRW.MoveInput = new float2
             {
@@ -48,25 +45,16 @@ public partial class ThirdPersonPlayerInputsSystem : SystemBase
 public partial struct ThirdPersonPlayerVariableStepControlSystem : ISystem
 {
     [BurstCompile]
-    public void OnCreate(ref SystemState state)
-    {
-        state.RequireForUpdate(SystemAPI.QueryBuilder().WithAll<ThirdPersonPlayer, ThirdPersonPlayerInputs>().Build());
-    }
-    
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         foreach (var (playerInputs, player) in SystemAPI.Query<ThirdPersonPlayerInputs, ThirdPersonPlayer>().WithAll<Simulate>())
         {
             if (SystemAPI.HasComponent<OrbitCameraControl>(player.ControlledCamera))
             {
-                OrbitCameraControl cameraControl = SystemAPI.GetComponent<OrbitCameraControl>(player.ControlledCamera);
-                
+                ref var cameraControl = ref SystemAPI.GetComponentRW<OrbitCameraControl>(player.ControlledCamera).ValueRW;
                 cameraControl.FollowedCharacterEntity = player.ControlledCharacter;
                 cameraControl.LookDegreesDelta = playerInputs.CameraLookInput;
                 cameraControl.ZoomDelta = playerInputs.CameraZoomInput;
-                
-                SystemAPI.SetComponent(player.ControlledCamera, cameraControl);
             }
         }
     }
@@ -84,7 +72,6 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<FixedTickSystem.Singleton>();
-        state.RequireForUpdate(SystemAPI.QueryBuilder().WithAll<ThirdPersonPlayer, ThirdPersonPlayerInputs>().Build());
     }
     
     [BurstCompile]
@@ -96,7 +83,7 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
         {
             if (SystemAPI.HasComponent<ThirdPersonCharacterControl>(player.ControlledCharacter))
             {
-                ThirdPersonCharacterControl characterControl = SystemAPI.GetComponent<ThirdPersonCharacterControl>(player.ControlledCharacter);
+                ref var characterControl = ref SystemAPI.GetComponentRW<ThirdPersonCharacterControl>(player.ControlledCharacter).ValueRW;
 
                 float3 characterUp = MathUtilities.GetUpFromRotation(SystemAPI.GetComponent<LocalTransform>(player.ControlledCharacter).Rotation);
                 
@@ -119,8 +106,6 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
 
                 // Jump
                 characterControl.Jump = playerInputs.JumpPressed.IsSet(tick);
-
-                SystemAPI.SetComponent(player.ControlledCharacter, characterControl);
             }
         }
     }
