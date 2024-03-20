@@ -45,7 +45,7 @@ public class ThirdPersonCharacterAuthoring : MonoBehaviour
                 StepAndSlopeHandling = authoring.StepAndSlopeHandling,
                 ControlledCamera = GetEntity(authoring.ControlledCamera, TransformUsageFlags.Dynamic),
             });
-            AddComponent<ThirdPersonCharacterControl>(entity);
+            AddComponent<ThirdPersonCharacterInput>(entity);
             AddComponent<ThirdPersonPlayerInputs>(entity);
         }
     }

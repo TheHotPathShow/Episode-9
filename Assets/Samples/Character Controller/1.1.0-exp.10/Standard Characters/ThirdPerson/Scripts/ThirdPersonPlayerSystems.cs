@@ -94,7 +94,7 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
         uint tick = SystemAPI.GetSingleton<FixedTickSystem.Singleton>().Tick;
         
         foreach (var (characterControlRef, playerInputs, characterData, transform) in SystemAPI.Query<
-                     RefRW<ThirdPersonCharacterControl>, 
+                     RefRW<ThirdPersonCharacterInput>, 
                      ThirdPersonPlayerInputs, 
                      ThirdPersonCharacterData, 
                      LocalTransform>())

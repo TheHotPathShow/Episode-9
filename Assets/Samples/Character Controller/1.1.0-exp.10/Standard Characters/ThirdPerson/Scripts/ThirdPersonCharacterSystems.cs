@@ -24,7 +24,7 @@ public struct ThirdPersonCharacterData : IComponentData
 }
 
 [Serializable]
-public struct ThirdPersonCharacterControl : IComponentData
+public struct ThirdPersonCharacterInput : IComponentData
 {
     public float3 MoveVector;
     public bool SprintIsHeld;
@@ -45,7 +45,7 @@ public partial struct ThirdPersonCharacterPhysicsUpdateSystem : ISystem
         _baseContext.OnSystemCreate(ref state);
         state.RequireForUpdate(
             KinematicCharacterUtilities.GetBaseCharacterQueryBuilder()
-            .WithAll<ThirdPersonCharacterData, ThirdPersonCharacterControl>()
+            .WithAll<ThirdPersonCharacterData, ThirdPersonCharacterInput>()
             .Build(ref state));
         state.RequireForUpdate<PhysicsWorldSingleton>();
     }
@@ -83,7 +83,7 @@ public partial struct ThirdPersonCharacterVariableUpdateSystem : ISystem
 
         state.RequireForUpdate(
             KinematicCharacterUtilities.GetBaseCharacterQueryBuilder()
-                .WithAll<ThirdPersonCharacterData, ThirdPersonCharacterControl>()
+                .WithAll<ThirdPersonCharacterData, ThirdPersonCharacterInput>()
                 .Build(ref state));
         state.RequireForUpdate<PhysicsWorldSingleton>();
     }

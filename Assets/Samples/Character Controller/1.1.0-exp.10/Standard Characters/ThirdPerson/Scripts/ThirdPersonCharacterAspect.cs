@@ -23,7 +23,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
 {
     public readonly KinematicCharacterAspect CharacterAspect;
     public readonly RefRW<ThirdPersonCharacterData> CharacterData;
-    public readonly RefRW<ThirdPersonCharacterControl> CharacterControl;
+    public readonly RefRW<ThirdPersonCharacterInput> CharacterInput;
 
     public void PhysicsUpdate(ref ThirdPersonCharacterUpdateContext context, ref KinematicCharacterUpdateContext baseContext)
     {
@@ -53,26 +53,26 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
         float deltaTime = baseContext.Time.DeltaTime;
         ref KinematicCharacterBody characterBody = ref CharacterAspect.CharacterBody.ValueRW;
         ref ThirdPersonCharacterData characterData = ref CharacterData.ValueRW;
-        ref ThirdPersonCharacterControl characterControl = ref CharacterControl.ValueRW;
+        ref ThirdPersonCharacterInput characterInput = ref CharacterInput.ValueRW;
 
         // Rotate move input and velocity to take into account parent rotation
         if(characterBody.ParentEntity != Entity.Null)
         {
-            characterControl.MoveVector = math.rotate(characterBody.RotationFromParent, characterControl.MoveVector);
+            characterInput.MoveVector = math.rotate(characterBody.RotationFromParent, characterInput.MoveVector);
             characterBody.RelativeVelocity = math.rotate(characterBody.RotationFromParent, characterBody.RelativeVelocity);
         }
 
-        var moveSpeed = characterControl.SprintIsHeld 
+        var moveSpeed = characterInput.SprintIsHeld 
             ? characterData.SprintSpeed 
             : characterData.WalkSpeed;
         if (characterBody.IsGrounded)
         {
             // Move on ground
-            float3 targetVelocity = characterControl.MoveVector * moveSpeed;
+            float3 targetVelocity = characterInput.MoveVector * moveSpeed;
             CharacterControlUtilities.StandardGroundMove_Interpolated(ref characterBody.RelativeVelocity, targetVelocity, characterData.GroundedMovementSharpness, deltaTime, characterBody.GroundingUp, characterBody.GroundHit.Normal);
 
             // Jump
-            if (characterControl.Jump)
+            if (characterInput.Jump)
             {
                 CharacterControlUtilities.StandardJump(ref characterBody, characterBody.GroundingUp * characterData.JumpSpeed, true, characterBody.GroundingUp);
             }
@@ -80,7 +80,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
         else
         {
             // Move in air
-            float3 airAcceleration = characterControl.MoveVector * characterData.AirAcceleration;
+            float3 airAcceleration = characterInput.MoveVector * characterData.AirAcceleration;
             if (math.lengthsq(airAcceleration) > 0f)
             {
                 float3 tmpVelocity = characterBody.RelativeVelocity;
@@ -105,7 +105,7 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
     {
         ref KinematicCharacterBody characterBody = ref CharacterAspect.CharacterBody.ValueRW;
         ref ThirdPersonCharacterData characterData = ref CharacterData.ValueRW;
-        ref ThirdPersonCharacterControl characterControl = ref CharacterControl.ValueRW;
+        ref ThirdPersonCharacterInput characterInput = ref CharacterInput.ValueRW;
         ref quaternion characterRotation = ref CharacterAspect.LocalTransform.ValueRW.Rotation;
 
         // Add rotation from parent body to the character rotation
@@ -113,9 +113,9 @@ public readonly partial struct ThirdPersonCharacterAspect : IAspect, IKinematicC
         KinematicCharacterUtilities.AddVariableRateRotationFromFixedRateRotation(ref characterRotation, characterBody.RotationFromParent, baseContext.Time.DeltaTime, characterBody.LastPhysicsUpdateDeltaTime);
         
         // Rotate towards move direction
-        if (math.lengthsq(characterControl.MoveVector) > 0f)
+        if (math.lengthsq(characterInput.MoveVector) > 0f)
         {
-            CharacterControlUtilities.SlerpRotationTowardsDirectionAroundUp(ref characterRotation, baseContext.Time.DeltaTime, math.normalizesafe(characterControl.MoveVector), MathUtilities.GetUpFromRotation(characterRotation), characterData.RotationSharpness);
+            CharacterControlUtilities.SlerpRotationTowardsDirectionAroundUp(ref characterRotation, baseContext.Time.DeltaTime, math.normalizesafe(characterInput.MoveVector), MathUtilities.GetUpFromRotation(characterRotation), characterData.RotationSharpness);
         }
     }
     
