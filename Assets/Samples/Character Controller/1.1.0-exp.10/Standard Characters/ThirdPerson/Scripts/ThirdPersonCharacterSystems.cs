@@ -6,6 +6,7 @@ using Unity.Transforms;
 using Unity.CharacterController;
 using Unity.Mathematics;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 [Serializable]
 public struct ThirdPersonCharacterData : IComponentData
@@ -70,10 +71,17 @@ struct KyleAnimationData : IComponentData
     // Read-Only Properties
     public float SpeedChangeRate;
     public float FallTimeout;
+    public float FootstepAudioVolume;
     
     // Read-Write Properties
     public float MotionBlend;
     public float FallTimeoutDelta;
+}
+
+public class KyleAnimationManagedData : IComponentData
+{
+    public AudioClip LandingAudioClip;
+    public AudioClip[] FootstepAudioClips;
 }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
@@ -126,6 +134,7 @@ public partial struct ThirdPersonCharacterVariableUpdateSystem : ISystem
             ref var animationData = ref SystemAPI.GetComponentRW<KyleAnimationData>(characterData.AnimationEntity).ValueRW;
             var characterInput = characterAspect.CharacterInput.ValueRO;
             var characterBody = characterAspect.CharacterAspect.CharacterBody.ValueRO;
+            var localTransform = characterAspect.CharacterAspect.LocalTransform.ValueRO;
             var targetSpeed = characterInput.SprintIsHeld ? characterData.SprintSpeed : characterData.WalkSpeed;
                 
             // Update Motion Blend
@@ -151,6 +160,23 @@ public partial struct ThirdPersonCharacterVariableUpdateSystem : ISystem
                     animationData.FallTimeoutDelta -= SystemAPI.Time.DeltaTime;
                 else
                     animator.SetBool(AnimIDFreeFall, true);
+            }
+            
+            // Handle Animation Events
+            var animatorEvents = SystemAPI.ManagedAPI.GetComponent<KyleAnimatorEvents>(characterData.AnimationEntity);
+            var managedData = SystemAPI.ManagedAPI.GetComponent<KyleAnimationManagedData>(characterData.AnimationEntity);
+            while (animatorEvents.MoveNextFootstep())
+            {
+                if (managedData.FootstepAudioClips.Length > 0)
+                {
+                    var index = Random.Range(0, managedData.FootstepAudioClips.Length);
+                    AudioSource.PlayClipAtPoint(managedData.FootstepAudioClips[index], localTransform.Position, animationData.FootstepAudioVolume);
+                }
+            }
+            
+            while (animatorEvents.MoveNextLand())
+            {
+                AudioSource.PlayClipAtPoint(managedData.LandingAudioClip, localTransform.Position, animationData.FootstepAudioVolume);
             }
         }
     }

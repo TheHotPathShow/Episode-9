@@ -3,6 +3,8 @@ using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
 
+public interface IAddMonoBehaviourToEntityOnAnimatorInstantiation {}
+
 struct AnimatorInstantiationData : IComponentData
 {
     public UnityObjectRef<GameObject> AnimatorGameObject;
@@ -30,12 +32,19 @@ partial struct AnimatorSystem : ISystem
                      .Build().ToEntityArray(state.WorldUpdateAllocator))
         {
             var data = SystemAPI.GetComponent<AnimatorInstantiationData>(entity);
-            var spawnedAnimator = Object.Instantiate(data.AnimatorGameObject.Value).GetComponent<Animator>();
+            var spawnedGameObject = Object.Instantiate(data.AnimatorGameObject.Value);
+            var spawnedAnimator = spawnedGameObject.GetComponent<Animator>();
             state.EntityManager.AddComponentObject(entity, spawnedAnimator);
             state.EntityManager.AddComponentData(entity, new AnimatorCleanup
             {
                 DestroyThisAnimator = spawnedAnimator
             });
+
+            foreach (var mb in spawnedGameObject.GetComponents<IAddMonoBehaviourToEntityOnAnimatorInstantiation>())
+            {
+                if (mb is MonoBehaviour monoBehaviour)
+                    state.EntityManager.AddComponentObject(entity, monoBehaviour);
+            }
         }
 
         // Sync the Animator's transform with the LocalToWorld
