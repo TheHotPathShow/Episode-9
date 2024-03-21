@@ -1,7 +1,9 @@
 ﻿using Unity.Entities;
 using UnityEngine;
 
+#if UNITY_EDITOR
 [RequireComponent(typeof(AnimatorAuthor))]
+#endif
 public class KyleAnimatorAuthor : MonoBehaviour
 {
     [Header("Kyle Animator Settings")]
