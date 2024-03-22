@@ -1,5 +1,5 @@
 ﻿# [The HotPath Show - Episode 9](https://www.youtube.com/watch?v=nkMbVjm-BAI)
-
+![Unity_BN1puEa9kj](https://github.com/TheHotPathShow/Episode-9/assets/7334984/4427e306-0e55-4cef-9353-69fd62e29476)
 
 ## 1. Preparing GameObject based AssetStore assets
 
@@ -29,7 +29,7 @@ To fulfill this first step, [the following changes were made to the project](htt
 ## 2. Building Animation interop
 
 When building any GameObject to Entities interop, you need to consider which case you're dealing with:
-- A. Your Managed Behaviour is heavily tied to an object (e.g. `Animator`)
+- A. Your Managed Behaviour is heavily tied to a specific object (e.g. `Animator`)
 - B. Your Managed Behaviour is heavily tied to the scene (e.g. `Input System` or `UI`)
 
 ### Applies to both:
@@ -45,7 +45,7 @@ Luckily, Entities has managed components. Not only are `IComponentData` on a cla
 That said, you still need to get the `GameObject` to the `Entity` in the first place. 
 Now, SubScenes can only store entities in the SubScene hierarchy. 
 This is a problem, because you can't have a `GameObject` in a SubScene, and you can't store a reference outside of the SubScene.
-One exception to this rule is `UnityObjectRef<T>` which is a managed reference to a `UnityEngine.Object` that can be stored in a SubScene. Importantly for us, it can store a reference to a GameObject prefab.
+One exception to this rule is `UnityObjectRef<T>` which is a unmanaged reference to a managed `UnityEngine.Object` that can be stored in a SubScene. Importantly for us, it can store a reference to a GameObject prefab.
 
 So, here's the plan:
 1. Create a `GameObject` prefab that contains the `Animator` component, along with the mesh it affects.
