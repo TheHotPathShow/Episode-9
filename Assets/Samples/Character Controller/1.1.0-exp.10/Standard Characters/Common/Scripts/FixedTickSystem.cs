@@ -1,24 +1,9 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
 using Unity.Burst;
 using Unity.Entities;
-
-public struct FixedInputEvent
-{
-    byte m_WasEverSet;
-    uint m_LastSetTick;
-    
-    public void Set(uint tick)
-    {
-        m_LastSetTick = tick;
-        m_WasEverSet = 1;
-    }
-    
-    public bool IsSet(uint tick)
-    {
-        if (m_WasEverSet == 1)
-            return tick == m_LastSetTick;
-        return false;
-    }
-}
+using UnityEngine;
 
 [UpdateInGroup(typeof(FixedStepSimulationSystemGroup), OrderLast = true)]
 [BurstCompile]
@@ -31,12 +16,17 @@ public partial struct FixedTickSystem : ISystem
 
     public void OnCreate(ref SystemState state)
     {
-        state.EntityManager.AddComponentData(state.SystemHandle, new Singleton());
+        if (!SystemAPI.HasSingleton<Singleton>())
+        { 
+            Entity singletonEntity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(singletonEntity, new Singleton());
+        }
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        SystemAPI.GetSingletonRW<Singleton>().ValueRW.Tick++;
+        ref Singleton singleton = ref SystemAPI.GetSingletonRW<Singleton>().ValueRW;
+        singleton.Tick++;
     }
 }

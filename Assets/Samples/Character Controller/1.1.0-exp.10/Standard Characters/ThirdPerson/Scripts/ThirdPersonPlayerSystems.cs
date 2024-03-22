@@ -1,50 +1,40 @@
-using System;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 using Unity.CharacterController;
 
-[Serializable]
-public struct ThirdPersonPlayerInputs : IComponentData
-{
-    public float2 MoveInput;
-    public float2 CameraLookInput;
-    public float CameraZoomInput;
-    public bool SprintIsHeld;
-    public FixedInputEvent JumpPressed;
-}
-
 [UpdateInGroup(typeof(InitializationSystemGroup))]
 public partial class ThirdPersonPlayerInputsSystem : SystemBase
 {
-    KyleInput m_Input;
     protected override void OnCreate()
     {
-        m_Input = new KyleInput();
-        m_Input.Enable();
-        Cursor.lockState = CursorLockMode.Locked;
         RequireForUpdate<FixedTickSystem.Singleton>();
-    }
-
-    protected override void OnDestroy()
-    {
-        m_Input.Disable();
+        RequireForUpdate(SystemAPI.QueryBuilder().WithAll<ThirdPersonPlayer, ThirdPersonPlayerInputs>().Build());
     }
 
     protected override void OnUpdate()
     {
         uint tick = SystemAPI.GetSingleton<FixedTickSystem.Singleton>().Tick;
         
-        foreach (var playerInputs in SystemAPI.Query<RefRW<ThirdPersonPlayerInputs>>())
+        foreach (var (playerInputs, player) in SystemAPI.Query<RefRW<ThirdPersonPlayerInputs>, ThirdPersonPlayer>())
         {
-            playerInputs.ValueRW.MoveInput = m_Input.Player.Move.ReadValue<Vector2>();
-            playerInputs.ValueRW.CameraLookInput = m_Input.Player.Look.ReadValue<Vector2>();
-            playerInputs.ValueRW.SprintIsHeld = m_Input.Player.Sprint.IsPressed();
+            playerInputs.ValueRW.MoveInput = new float2
+            {
+                x = (Input.GetKey(KeyCode.D) ? 1f : 0f) + (Input.GetKey(KeyCode.A) ? -1f : 0f),
+                y = (Input.GetKey(KeyCode.W) ? 1f : 0f) + (Input.GetKey(KeyCode.S) ? -1f : 0f),
+            };
+
+            playerInputs.ValueRW.CameraLookInput = new float2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
             playerInputs.ValueRW.CameraZoomInput = -Input.mouseScrollDelta.y;
-            if (m_Input.Player.Jump.triggered) 
+
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
                 playerInputs.ValueRW.JumpPressed.Set(tick);
+            }
         }
     }
 }
@@ -58,17 +48,25 @@ public partial class ThirdPersonPlayerInputsSystem : SystemBase
 public partial struct ThirdPersonPlayerVariableStepControlSystem : ISystem
 {
     [BurstCompile]
+    public void OnCreate(ref SystemState state)
+    {
+        state.RequireForUpdate(SystemAPI.QueryBuilder().WithAll<ThirdPersonPlayer, ThirdPersonPlayerInputs>().Build());
+    }
+    
+    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (var (playerInputs, characterData, playerEntity) in SystemAPI
-                     .Query<ThirdPersonPlayerInputs, ThirdPersonCharacterData>().WithEntityAccess())
+        foreach (var (playerInputs, player) in SystemAPI.Query<ThirdPersonPlayerInputs, ThirdPersonPlayer>().WithAll<Simulate>())
         {
-            if (SystemAPI.HasComponent<OrbitCameraControl>(characterData.ControlledCamera))
+            if (SystemAPI.HasComponent<OrbitCameraControl>(player.ControlledCamera))
             {
-                ref var cameraControl = ref SystemAPI.GetComponentRW<OrbitCameraControl>(characterData.ControlledCamera).ValueRW;
-                cameraControl.FollowedCharacterEntity = playerEntity;
+                OrbitCameraControl cameraControl = SystemAPI.GetComponent<OrbitCameraControl>(player.ControlledCamera);
+                
+                cameraControl.FollowedCharacterEntity = player.ControlledCharacter;
                 cameraControl.LookDegreesDelta = playerInputs.CameraLookInput;
                 cameraControl.ZoomDelta = playerInputs.CameraZoomInput;
+                
+                SystemAPI.SetComponent(player.ControlledCamera, cameraControl);
             }
         }
     }
@@ -86,6 +84,7 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<FixedTickSystem.Singleton>();
+        state.RequireForUpdate(SystemAPI.QueryBuilder().WithAll<ThirdPersonPlayer, ThirdPersonPlayerInputs>().Build());
     }
     
     [BurstCompile]
@@ -93,38 +92,36 @@ public partial struct ThirdPersonPlayerFixedStepControlSystem : ISystem
     {
         uint tick = SystemAPI.GetSingleton<FixedTickSystem.Singleton>().Tick;
         
-        foreach (var (characterControlRef, playerInputs, characterData, transform) in SystemAPI.Query<
-                     RefRW<ThirdPersonCharacterInput>, 
-                     ThirdPersonPlayerInputs, 
-                     ThirdPersonCharacterData, 
-                     LocalTransform>())
+        foreach (var (playerInputs, player) in SystemAPI.Query<ThirdPersonPlayerInputs, ThirdPersonPlayer>().WithAll<Simulate>())
         {
-            ref var characterControl = ref characterControlRef.ValueRW;
-
-            float3 characterUp = MathUtilities.GetUpFromRotation(transform.Rotation);
-            
-            // Get camera rotation, since our movement is relative to it.
-            quaternion cameraRotation = quaternion.identity;
-            if (SystemAPI.HasComponent<OrbitCamera>(characterData.ControlledCamera))
+            if (SystemAPI.HasComponent<ThirdPersonCharacterControl>(player.ControlledCharacter))
             {
-                // Camera rotation is calculated rather than gotten from transform, because this allows us to 
-                // reduce the size of the camera ghost state in a netcode prediction context.
-                // If not using netcode prediction, we could simply get rotation from transform here instead.
-                OrbitCamera orbitCamera = SystemAPI.GetComponent<OrbitCamera>(characterData.ControlledCamera);
-                cameraRotation = OrbitCameraUtilities.CalculateCameraRotation(characterUp, orbitCamera.PlanarForward, orbitCamera.PitchAngle);
+                ThirdPersonCharacterControl characterControl = SystemAPI.GetComponent<ThirdPersonCharacterControl>(player.ControlledCharacter);
+
+                float3 characterUp = MathUtilities.GetUpFromRotation(SystemAPI.GetComponent<LocalTransform>(player.ControlledCharacter).Rotation);
+                
+                // Get camera rotation, since our movement is relative to it.
+                quaternion cameraRotation = quaternion.identity;
+                if (SystemAPI.HasComponent<OrbitCamera>(player.ControlledCamera))
+                {
+                    // Camera rotation is calculated rather than gotten from transform, because this allows us to 
+                    // reduce the size of the camera ghost state in a netcode prediction context.
+                    // If not using netcode prediction, we could simply get rotation from transform here instead.
+                    OrbitCamera orbitCamera = SystemAPI.GetComponent<OrbitCamera>(player.ControlledCamera);
+                    cameraRotation = OrbitCameraUtilities.CalculateCameraRotation(characterUp, orbitCamera.PlanarForward, orbitCamera.PitchAngle);
+                }
+                float3 cameraForwardOnUpPlane = math.normalizesafe(MathUtilities.ProjectOnPlane(MathUtilities.GetForwardFromRotation(cameraRotation), characterUp));
+                float3 cameraRight = MathUtilities.GetRightFromRotation(cameraRotation);
+
+                // Move
+                characterControl.MoveVector = (playerInputs.MoveInput.y * cameraForwardOnUpPlane) + (playerInputs.MoveInput.x * cameraRight);
+                characterControl.MoveVector = MathUtilities.ClampToMaxLength(characterControl.MoveVector, 1f);
+
+                // Jump
+                characterControl.Jump = playerInputs.JumpPressed.IsSet(tick);
+
+                SystemAPI.SetComponent(player.ControlledCharacter, characterControl);
             }
-            float3 cameraForwardOnUpPlane = math.normalizesafe(MathUtilities.ProjectOnPlane(MathUtilities.GetForwardFromRotation(cameraRotation), characterUp));
-            float3 cameraRight = MathUtilities.GetRightFromRotation(cameraRotation);
-
-            // Move
-            characterControl.MoveVector = (playerInputs.MoveInput.y * cameraForwardOnUpPlane) + (playerInputs.MoveInput.x * cameraRight);
-            characterControl.MoveVector = MathUtilities.ClampToMaxLength(characterControl.MoveVector, 1f);
-
-            // Jump
-            characterControl.Jump = playerInputs.JumpPressed.IsSet(tick);
-            
-            // Sprint
-            characterControl.SprintIsHeld = playerInputs.SprintIsHeld;
         }
     }
 }
