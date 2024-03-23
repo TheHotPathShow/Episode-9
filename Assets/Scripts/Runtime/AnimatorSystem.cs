@@ -3,16 +3,15 @@ using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
 
-public interface IAddMonoBehaviourToEntityOnAnimatorInstantiation {}
-
 struct AnimatorInstantiationData : IComponentData
 {
-    public UnityObjectRef<GameObject> AnimatorGameObject;
+    public UnityObjectRef<GameObject> GameObject;
+    public ulong ComponentIndices;
 }
 
-class AnimatorCleanup : ICleanupComponentData
+class GameObjectCleanup : ICleanupComponentData
 {
-    public Animator DestroyThisAnimator;
+    public GameObject DestroyThisGameObject;
 }
 
 [UpdateAfter(typeof(TransformSystemGroup))]
@@ -20,47 +19,40 @@ partial struct AnimatorSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            var playerEntity = SystemAPI.GetSingletonEntity<AnimatorInstantiationData>();
-            state.EntityManager.DestroyEntity(playerEntity);
-        }
-        
         // Instantiate the Animator if it doesn't exist
         foreach (var entity in SystemAPI.QueryBuilder()
-                     .WithAll<AnimatorInstantiationData>().WithNone<Animator>()
+                     .WithAll<AnimatorInstantiationData>().WithNone<GameObjectCleanup>()
                      .Build().ToEntityArray(state.WorldUpdateAllocator))
         {
             var data = SystemAPI.GetComponent<AnimatorInstantiationData>(entity);
-            var spawnedGameObject = Object.Instantiate(data.AnimatorGameObject.Value);
-            var spawnedAnimator = spawnedGameObject.GetComponent<Animator>();
-            state.EntityManager.AddComponentObject(entity, spawnedAnimator);
-            state.EntityManager.AddComponentData(entity, new AnimatorCleanup
+            var spawned = Object.Instantiate(data.GameObject.Value);
+            state.EntityManager.AddComponentData(entity, new GameObjectCleanup
             {
-                DestroyThisAnimator = spawnedAnimator
+                DestroyThisGameObject = spawned
             });
-
-            foreach (var mb in spawnedGameObject.GetComponents<IAddMonoBehaviourToEntityOnAnimatorInstantiation>())
+            var componentIndices = data.ComponentIndices;
+            foreach (var component in spawned.GetComponents<Component>())
             {
-                if (mb is MonoBehaviour monoBehaviour)
-                    state.EntityManager.AddComponentObject(entity, monoBehaviour);
+                if ((componentIndices & 1) != 0)
+                    state.EntityManager.AddComponentObject(entity, component);
+                componentIndices >>= 1;
             }
         }
 
         // Sync the Animator's transform with the LocalToWorld
-        foreach (var (ltw, animator) in SystemAPI.Query<LocalToWorld, SystemAPI.ManagedAPI.UnityEngineComponent<Animator>>())
+        foreach (var (ltw, gameObjectCleanup) in SystemAPI.Query<LocalToWorld, GameObjectCleanup>())
         {
-            animator.Value.transform.SetPositionAndRotation(ltw.Position, ltw.Rotation);
+            gameObjectCleanup.DestroyThisGameObject.transform.SetPositionAndRotation(ltw.Position, ltw.Rotation);
         }
         
         // If the Animator is destroyed, remove the AnimatorCleanup component
         foreach (var entity in SystemAPI.QueryBuilder()
-                     .WithAll<AnimatorCleanup>().WithNone<AnimatorInstantiationData>()
+                     .WithAll<GameObjectCleanup>().WithNone<AnimatorInstantiationData>()
                      .Build().ToEntityArray(state.WorldUpdateAllocator))
         {
-            var data = SystemAPI.ManagedAPI.GetComponent<AnimatorCleanup>(entity);
-            Object.Destroy(data.DestroyThisAnimator.gameObject);
-            state.EntityManager.RemoveComponent<AnimatorCleanup>(entity);
+            var data = SystemAPI.ManagedAPI.GetComponent<GameObjectCleanup>(entity);
+            Object.Destroy(data.DestroyThisGameObject);
+            state.EntityManager.RemoveComponent<GameObjectCleanup>(entity);
         }
     }
 }
@@ -99,6 +91,7 @@ partial struct EditorAnimatorSystem : ISystem, ISystemStartStop
                 SystemAPI.SetComponent(originalEntity, LocalTransform.FromMatrix(originalLocalToWorld.Value));
             else 
                 state.EntityManager.AddComponentData(originalEntity, LocalTransform.FromMatrix(originalLocalToWorld.Value));
+            
         }
         
         // Remove the EditorAnimatorVisualEntityPrefab component
